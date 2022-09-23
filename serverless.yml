@@ -1,0 +1,73 @@
+
+service: narouz-makar-aws-challenge
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: dotnet6
+  environment:
+    Bucket_Name: sandbox-0101010-${self:service}-assets
+    ToDo_External_Url: https://jsonplaceholder.typicode.com
+  apiGateway:
+    apiKeys:
+      - ${self:service}-first_key
+      - ${self:service}-second_key
+    resourcePolicy:
+      - Effect: Allow
+        Principal: '*'
+        Action: execute-api:Invoke
+        Resource:
+          - execute-api:/*/*/*
+        Condition:
+          IpAddress:
+            aws:SourceIp:
+              - 208.53.195.66/32
+              - 35.137.142.130
+
+  s3:
+    assetsBucket:
+      name: ${self:provider.environment.Bucket_Name}
+      accessControl: Private
+      bucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+package:
+  individually: true
+
+functions:
+  LoadTodos:
+    handler: AwsDotnetCsharp::AwsDotnetCsharp.Handler::LoadTodos
+    events:
+    - http:
+        path: todos
+        method: get
+    package:
+      artifact: bin/Release/net6.0/package.zip
+
+
+resources:
+  Resources:
+    MyS3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.Bucket_Name}
+
+# custom:
+#   resourcePolicy:
+#     dev:
+#       - Effect: Allow
+#         Principal: '*'
+#         Action: execute-api:Invoke
+#         Resource:
+#           - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/*/*
+#         Condition:
+#           IpAddress:
+#             aws:SourceIp:
+#             - 208.53.195.66/32
+#             - 192.168.1.17
