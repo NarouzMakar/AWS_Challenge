@@ -8,6 +8,8 @@ provider:
   environment:
     Bucket_Name: sandbox-0101010-${self:service}-assets
     ToDo_External_Url: https://jsonplaceholder.typicode.com
+    Access_key_ID: '{{resolve:secretsmanager:narouz_aws_challenge_access_key_id:SecretString:SECRET}}'
+    Secret_Access_Key: '{{resolve:secretsmanager:narouz_aws_challenge_secret_access_key:SecretString:SECRET}}'
   apiGateway:
     apiKeys:
       - ${self:service}-first_key
@@ -17,12 +19,14 @@ provider:
         Principal: '*'
         Action: execute-api:Invoke
         Resource:
-          - execute-api:/*/*/*
+          - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/*/*
+
         Condition:
           IpAddress:
             aws:SourceIp:
               - 208.53.195.66/32
-              - 35.137.142.130
+              - 50.202.73.133
+              - 192.168.1.17
 
   s3:
     assetsBucket:
@@ -47,6 +51,7 @@ functions:
     - http:
         path: todos
         method: get
+        private: true
     package:
       artifact: bin/Release/net6.0/package.zip
 
@@ -57,17 +62,9 @@ resources:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:provider.environment.Bucket_Name}
-
-# custom:
-#   resourcePolicy:
-#     dev:
-#       - Effect: Allow
-#         Principal: '*'
-#         Action: execute-api:Invoke
-#         Resource:
-#           - !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:*/*/*/*
-#         Condition:
-#           IpAddress:
-#             aws:SourceIp:
-#             - 208.53.195.66/32
-#             - 192.168.1.17
+    ApiGatewayRestApi:
+      Type: AWS::ApiGateway::RestApi
+      DependsOn:
+        - LoadTodosLambdaFunction
+      Properties:
+        Name: ${self:service}
